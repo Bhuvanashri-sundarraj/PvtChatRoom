@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>ChatSpace</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:          #0d0d0d;
+            --bg-sidebar:  #101010;
+            --bg-main:     #141414;
+            --bg-el:       #1c1c1c;
+            --bg-hover:    #222222;
+            --bg-input:    #191919;
+            --border:      #272727;
+            --border-hi:   #333333;
+            --text-1:      #f2f2f2;
+            --text-2:      #888888;
+            --text-3:      #4a4a4a;
+            --sent-bg:     #ffffff;
+            --sent-text:   #0d0d0d;
+            --recv-bg:     #1f1f1f;
+            --recv-text:   #e0e0e0;
+            --green:       #22c55e;
+            --red:         #ef4444;
+            --font:        'Inter', sans-serif;
+            --ease:        cubic-bezier(0.4, 0, 0.2, 1);
+            --spring:      cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        body {
+            font-family: var(--font);
+            background: var(--bg);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        /* ─── Toast Notification ─── */
+        #toast {
+            position: fixed;
+            top: 28px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-120px);
+            z-index: 9999;
+            background: #1a1a1a;
+            border: 1px solid #3a1a1a;
+            border-radius: 16px;
+            padding: 16px 22px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            min-width: 300px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(239,68,68,0.15);
+            transition: transform 0.5s var(--spring), opacity 0.4s var(--ease);
+            opacity: 0;
+            pointer-events: none;
+        }
+        #toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .toast-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 20px;
+        }
+        .toast-icon.sad { animation: sadBounce 0.7s var(--spring) 0.2s both; }
+        @keyframes sadBounce {
+            0%   { transform: scale(0.5) rotate(-10deg); opacity: 0; }
+            60%  { transform: scale(1.15) rotate(5deg); }
+            80%  { transform: scale(0.95) rotate(-2deg); }
+            100% { transform: scale(1) rotate(0); opacity: 1; }
+        }
+        .toast-body { flex: 1; }
+        .toast-title {
+            font-size: 13.5px;
+            font-weight: 600;
+            color: var(--text-1);
+            margin-bottom: 2px;
+        }
+        .toast-sub {
+            font-size: 12px;
+            color: var(--text-2);
+        }
+        .toast-close {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            background: transparent;
+            border: none;
+            color: var(--text-2);
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s, color 0.15s;
+            flex-shrink: 0;
+        }
+        .toast-close:hover { background: var(--bg-hover); color: var(--text-1); }
+
+        /* ─── Shell ─── */
+        .shell {
+            display: flex;
+            width: 900px;
+            height: 88vh;
+            min-height: 580px;
+            max-height: 900px;
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            box-shadow: 0 40px 100px rgba(0,0,0,0.7);
+            animation: shellIn 0.5s var(--spring) both;
+        }
+        @keyframes shellIn {
+            from { opacity: 0; transform: scale(0.95) translateY(24px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        /* ─── Sidebar ─── */
+        .sidebar {
+            width: 268px;
+            flex-shrink: 0;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-head {
+            padding: 22px 20px 18px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .logo-mark {
+            width: 32px;
+            height: 32px;
+            border-radius: 9px;
+            background: var(--text-1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        .logo-text {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-1);
+            letter-spacing: -0.025em;
+        }
+        .logo-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            margin-left: auto;
+            box-shadow: 0 0 8px rgba(34,197,94,0.5);
+            animation: breathe 2.5s ease-in-out infinite;
+        }
+        @keyframes breathe {
+            0%,100% { opacity: 1; box-shadow: 0 0 8px rgba(34,197,94,0.5); }
+            50%      { opacity: 0.6; box-shadow: 0 0 3px rgba(34,197,94,0.2); }
+        }
+
+        .section-label {
+            font-size: 10.5px;
+            font-weight: 600;
+            color: var(--text-3);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            padding: 20px 20px 10px;
+        }
+
+        .sidebar-form {
+            padding: 0 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .field-label {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-2);
+            padding-left: 2px;
+        }
+        .sidebar-form input {
+            width: 100%;
+            background: var(--bg-el);
+            border: 1px solid var(--border-hi);
+            border-radius: 9px;
+            padding: 9px 12px;
+            font-family: var(--font);
+            font-size: 13px;
+            color: var(--text-1);
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .sidebar-form input::placeholder { color: var(--text-3); }
+        .sidebar-form input:focus {
+            border-color: rgba(242,242,242,0.25);
+            box-shadow: 0 0 0 3px rgba(242,242,242,0.05);
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 8px;
+            padding: 12px 14px 0;
+        }
+        .btn-join, .btn-leave {
+            flex: 1;
+            font-family: var(--font);
+            font-size: 12.5px;
+            font-weight: 600;
+            border-radius: 9px;
+            padding: 9px 0;
+            cursor: pointer;
+            border: none;
+            transition: all 0.15s var(--ease);
+            letter-spacing: 0.01em;
+        }
+        .btn-join {
+            background: var(--text-1);
+            color: #111;
+        }
+        .btn-join:hover:not(:disabled) { background: #d8d8d8; transform: translateY(-1px); }
+        .btn-join:active:not(:disabled) { transform: translateY(0); }
+        .btn-join:disabled { background: var(--bg-hover); color: var(--text-3); cursor: not-allowed; }
+
+        .btn-leave {
+            background: rgba(239,68,68,0.08);
+            color: var(--red);
+            border: 1px solid rgba(239,68,68,0.15);
+        }
+        .btn-leave:hover:not(:disabled) { background: rgba(239,68,68,0.16); transform: translateY(-1px); }
+        .btn-leave:active:not(:disabled) { transform: translateY(0); }
+        .btn-leave:disabled { background: transparent; color: var(--text-3); border-color: var(--border); cursor: not-allowed; }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 14px 18px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 9px;
+            background: var(--bg-el);
+            border: 1px solid var(--border-hi);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-2);
+            flex-shrink: 0;
+            transition: background 0.2s;
+        }
+        .user-info { flex: 1; min-width: 0; }
+        .user-name {
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--text-1);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .user-status { font-size: 11px; color: var(--text-3); }
+
+        /* ─── Main ─── */
+        .chat-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-main);
+            min-width: 0;
+        }
+
+        .topbar {
+            height: 56px;
+            padding: 0 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .topbar-left { display: flex; align-items: center; gap: 10px; }
+        .ch-hash { font-size: 20px; color: var(--text-3); font-weight: 300; line-height: 1; }
+        .ch-name { font-size: 14.5px; font-weight: 600; color: var(--text-1); }
+        .ch-sep { width: 1px; height: 18px; background: var(--border-hi); }
+        .ch-desc { font-size: 12.5px; color: var(--text-2); }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-2);
+            background: var(--bg-el);
+            border: 1px solid var(--border-hi);
+            border-radius: 99px;
+            padding: 4px 12px;
+        }
+        .status-pill-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-3);
+            transition: background 0.3s;
+        }
+        .status-pill-dot.online { background: var(--green); box-shadow: 0 0 6px rgba(34,197,94,0.5); }
+
+        /* ─── Messages ─── */
+        #chat {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px 20px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-hi) transparent;
+        }
+        #chat::-webkit-scrollbar { width: 4px; }
+        #chat::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 99px; }
+
+        /* System */
+        .system-msg {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 11.5px;
+            color: var(--text-3);
+            padding: 6px 8px;
+            animation: fadeMsg 0.3s var(--ease) both;
+        }
+        .system-msg::before, .system-msg::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        /* Message row */
+        .msg-row {
+            display: flex;
+            flex-direction: column;
+            max-width: 68%;
+            animation: fadeMsg 0.25s var(--spring) both;
+        }
+        @keyframes fadeMsg {
+            from { opacity: 0; transform: translateY(8px) scale(0.97); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .msg-row.sent { align-self: flex-end; align-items: flex-end; }
+        .msg-row.recv { align-self: flex-start; align-items: flex-start; }
+
+        .msg-meta-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
+            padding: 0 4px;
+        }
+        .msg-row.sent .msg-meta-row { flex-direction: row-reverse; }
+
+        .msg-sender-name {
+            font-size: 11.5px;
+            font-weight: 600;
+            color: var(--text-2);
+        }
+        .msg-timestamp {
+            font-size: 10.5px;
+            color: var(--text-3);
+        }
+
+        .bubble {
+            padding: 10px 15px;
+            border-radius: 18px;
+            font-size: 13.5px;
+            line-height: 1.55;
+            word-break: break-word;
+            position: relative;
+        }
+
+        .msg-row.sent .bubble {
+            background: var(--sent-bg);
+            color: var(--sent-text);
+            border-bottom-right-radius: 5px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+        }
+        .msg-row.recv .bubble {
+            background: var(--recv-bg);
+            color: var(--recv-text);
+            border-bottom-left-radius: 5px;
+            border: 1px solid var(--border-hi);
+        }
+
+        /* ─── Input Area ─── */
+        .input-area {
+            padding: 12px 20px 20px;
+            flex-shrink: 0;
+        }
+
+        .input-shell {
+            display: flex;
+            align-items: center;
+            background: var(--bg-el);
+            border: 1px solid var(--border-hi);
+            border-radius: 14px;
+            padding: 6px 6px 6px 18px;
+            gap: 10px;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .input-shell:focus-within {
+            border-color: rgba(242,242,242,0.2);
+            box-shadow: 0 0 0 3px rgba(242,242,242,0.04);
+        }
+
+        #messageInput {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-family: var(--font);
+            font-size: 13.5px;
+            color: var(--text-1);
+            padding: 8px 0;
+            min-width: 0;
+        }
+        #messageInput::placeholder { color: var(--text-3); }
+        #messageInput:disabled { cursor: not-allowed; }
+
+        /* Send Button */
+        #sendBtn {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            background: var(--text-1);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background 0.15s, transform 0.15s var(--spring), box-shadow 0.15s;
+            position: relative;
+            overflow: hidden;
+        }
+        #sendBtn:hover:not(:disabled) {
+            background: #e2e2e2;
+            transform: scale(1.06);
+            box-shadow: 0 4px 16px rgba(255,255,255,0.12);
+        }
+        #sendBtn:active:not(:disabled) { transform: scale(0.94); }
+        #sendBtn:disabled {
+            background: var(--bg-hover);
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        #sendBtn svg {
+            transition: transform 0.2s var(--spring);
+        }
+        #sendBtn:hover:not(:disabled) svg { transform: translateX(2px) translateY(-2px); }
+
+        /* Ripple */
+        #sendBtn::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: inherit;
+            background: rgba(255,255,255,0.3);
+            transform: scale(0);
+            opacity: 0;
+            transition: transform 0.4s, opacity 0.4s;
+        }
+        #sendBtn.ripple::after {
+            transform: scale(2.5);
+            opacity: 0;
+            transition: none;
+        }
+        #sendBtn:active:not(:disabled)::after {
+            transform: scale(0);
+            opacity: 0.5;
+            transition: none;
+        }
+
+        .input-hint {
+            font-size: 11px;
+            color: var(--text-3);
+            padding: 5px 5px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+<!-- Toast -->
+<div id="toast">
+    <div class="toast-icon sad" id="toastIcon">😔</div>
+    <div class="toast-body">
+        <div class="toast-title">Wrong password</div>
+        <div class="toast-sub">The room password you entered is incorrect.</div>
+    </div>
+    <button class="toast-close" onclick="hideToast()">✕</button>
+</div>
+
+<div class="shell">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-head">
+            <div class="logo-mark">💬</div>
+            <div class="logo-text">ChatSpace</div>
+            <div class="logo-dot"></div>
+        </div>
+
+        <div class="section-label">Connection</div>
+
+        <div class="sidebar-form">
+            <div class="field">
+                <div class="field-label">Display name</div>
+                <input id="senderInput" placeholder="e.g. john_doe" />
+            </div>
+            <div class="field">
+                <div class="field-label">Room</div>
+                <input id="roomInput" placeholder="e.g. general" />
+            </div>
+            <div class="field">
+                <div class="field-label">Password</div>
+                <input id="passwordInput" type="password" placeholder="••••••••" />
+            </div>
+        </div>
+
+        <div class="btn-row">
+            <button id="joinBtn" class="btn-join">Join Room</button>
+            <button id="leaveBtn" class="btn-leave" disabled>Leave</button>
+        </div>
+
+        <div class="sidebar-footer">
+            <div class="user-avatar" id="sidebarAvatar">—</div>
+            <div class="user-info">
+                <div class="user-name" id="sidebarName">Not connected</div>
+                <div class="user-status" id="sidebarStatus">Offline</div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="chat-main">
+        <div class="topbar">
+            <div class="topbar-left">
+                <span class="ch-hash">#</span>
+                <span class="ch-name" id="topbarRoom">general</span>
+                <div class="ch-sep"></div>
+                <span class="ch-desc">Team chat room</span>
+            </div>
+            <div class="status-pill">
+                <div class="status-pill-dot" id="statusDot"></div>
+                <span id="topbarStatus">Disconnected</span>
+            </div>
+        </div>
+
+        <div id="chat"></div>
+
+        <div class="input-area">
+            <div class="input-shell">
+                <input id="messageInput" placeholder="Send a message..." disabled />
+                <button id="sendBtn" disabled title="Send message">
+                    <!-- Paper plane SVG -->
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M22 2L11 13" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="input-hint">Press Enter or click ↗ to send</div>
+        </div>
+    </main>
+
+</div>
+
+<script>
+
+    let stompClient = null;
+    let currentUser = null;
+    let currentRoom = null;
+    let toastTimer = null;
+
+    function showToast() {
+        const toast = document.getElementById('toast');
+        const icon  = document.getElementById('toastIcon');
+        // Re-trigger sad animation
+        icon.classList.remove('sad');
+        void icon.offsetWidth;
+        icon.classList.add('sad');
+        toast.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(hideToast, 4000);
+    }
+
+    function hideToast() {
+        document.getElementById('toast').classList.remove('show');
+    }
+
+    function connect() {
+        const socket = new SockJS('/chat');
+        stompClient = Stomp.over(socket);
+        stompClient.debug = null;
+
+        stompClient.connect({}, function () {
+            stompClient.subscribe('/topic/messages', function (msg) {
+                showMessage(JSON.parse(msg.body));
+            });
+        });
+    }
+
+    function joinChat() {
+        currentUser = senderInput.value.trim();
+        currentRoom = roomInput.value.trim();
+        const password = passwordInput.value;
+
+        if (!currentUser || !currentRoom || !password) return;
+
+        stompClient.send("/app/join", {}, JSON.stringify({
+            sender: currentUser,
+            room: currentRoom,
+            content: password
+        }));
+    }
+
+    function leaveChat() {
+        stompClient.send("/app/leave", {}, JSON.stringify({
+            sender: currentUser,
+            room: currentRoom
+        }));
+
+        messageInput.disabled = true;
+        sendBtn.disabled = true;
+        leaveBtn.disabled = true;
+        joinBtn.disabled = false;
+
+        document.getElementById('sidebarAvatar').textContent = '—';
+        document.getElementById('sidebarName').textContent = 'Not connected';
+        document.getElementById('sidebarStatus').textContent = 'Offline';
+        document.getElementById('topbarStatus').textContent = 'Disconnected';
+        document.getElementById('statusDot').classList.remove('online');
+        document.getElementById('messageInput').placeholder = 'Send a message...';
+    }
+
+    function sendMessage() {
+        const content = messageInput.value.trim();
+        if (!content) return;
+
+        // Ripple on send button
+        sendBtn.classList.add('ripple');
+        setTimeout(() => sendBtn.classList.remove('ripple'), 400);
+
+        stompClient.send("/app/sendMessage", {}, JSON.stringify({
+            sender: currentUser,
+            room: currentRoom,
+            content: content
+        }));
+
+        messageInput.value = "";
+    }
+
+    function showMessage(message) {
+        if (message.room !== currentRoom) return;
+
+        if (message.type === "ERROR" && message.sender === currentUser) {
+            showToast();
+            return;
+        }
+
+        const chat = document.getElementById("chat");
+        const div  = document.createElement("div");
+
+        if (message.type === "JOIN") {
+            if (message.sender === currentUser) {
+                messageInput.disabled = false;
+                sendBtn.disabled = false;
+                leaveBtn.disabled = false;
+                joinBtn.disabled = true;
+
+                const initials = currentUser.slice(0, 2).toUpperCase();
+                document.getElementById('sidebarAvatar').textContent = initials;
+                document.getElementById('sidebarName').textContent = currentUser;
+                document.getElementById('sidebarStatus').textContent = 'Online · ' + currentRoom;
+                document.getElementById('topbarRoom').textContent = currentRoom;
+                document.getElementById('topbarStatus').textContent = 'Connected';
+                document.getElementById('statusDot').classList.add('online');
+                document.getElementById('messageInput').placeholder = `Message #${currentRoom}...`;
+            }
+            div.classList.add("system-msg");
+            div.textContent = `${message.sender} joined · ${message.time}`;
+        }
+
+        else if (message.type === "LEAVE") {
+            div.classList.add("system-msg");
+            div.textContent = `${message.sender} left · ${message.time}`;
+        }
+
+        else if (message.type === "CHAT") {
+            const isSelf = message.sender === currentUser;
+            div.classList.add("msg-row", isSelf ? "sent" : "recv");
+
+            div.innerHTML = `
+                <div class="msg-meta-row">
+                    <span class="msg-sender-name">${message.sender}</span>
+                    <span class="msg-timestamp">${message.time}</span>
+                </div>
+                <div class="bubble">${message.content}</div>`;
+        }
+
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    document.getElementById('messageInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    });
+
+    document.getElementById("joinBtn").addEventListener("click", joinChat);
+    document.getElementById("leaveBtn").addEventListener("click", leaveChat);
+    document.getElementById("sendBtn").addEventListener("click", sendMessage);
+
+    window.addEventListener("load", connect);
+
+</script>
+</body>
+</html>
