@@ -67,67 +67,67 @@ In-memory Room Management (HashMap)
 ## ⚙️ Installation & Running Locally
 
 ### 1️⃣ Clone the repository
-git clone https://github.com/Bhuvanashri-sundarraj/PvtChatRoom.git
-cd PvtChatRoom
+- git clone https://github.com/Bhuvanashri-sundarraj/PvtChatRoom.git
+- cd PvtChatRoom
 ### 2️⃣ Set Environment Variables
-Create environment variables for OAuth:
-GOOGLE_CLIENT_ID=your_client_id
-GOOGLE_CLIENT_SECRET=your_client_secret
+- Create environment variables for OAuth:
+<br>GOOGLE_CLIENT_ID=your_client_id
+<br>GOOGLE_CLIENT_SECRET=your_client_secret
 ### 3️⃣ Run the Application
-Using Maven:
-mvn spring-boot:run
-Or run AppApplication.java from IntelliJ.
+- Using Maven:
+<br>mvn spring-boot:run
+- Or run AppApplication.java from IntelliJ.
 ### 4️⃣ Open in Browser
-http://localhost:8080
+- http://localhost:8080
 
 ### 🌍 Demo Using ngrok (Optional if not ready for deployment in cloud)
-To expose your local app publicly:
-ngrok http 8080
-This generates a public URL like:
-https://abc123.ngrok-free.app
-Use this link on multiple devices to demonstrate real-time chat.
-
-⚠️ If using OAuth, update Google Console with:
-Authorized JavaScript Origin
-https://abc123.ngrok-free.app
-Authorized Redirect URI
-https://abc123.ngrok-free.app/login/oauth2/code/google
-🔑 OAuth Configuration
-In application.properties:
-spring.security.oauth2.client.registration.google.client-id=${GOOGLE_CLIENT_ID}
-spring.security.oauth2.client.registration.google.client-secret=${GOOGLE_CLIENT_SECRET}
-spring.security.oauth2.client.registration.google.scope=openid,profile,email
-Secrets are injected via environment variables.
+- To expose your local app publicly:
+<br>ngrok http 8080
+- This generates a public URL like:
+<br>https://abc123.ngrok-free.app
+- Use this link on multiple devices to demonstrate real-time chat.
+<br>
+⚠️ If using OAuth, update Google Console with:<br>
+- Authorized JavaScript Origin
+<br>https://abc123.ngrok-free.app<br>
+- Authorized Redirect URI
+<br>https://abc123.ngrok-free.app/login/oauth2/code/google
+<br>🔑 OAuth Configuration<br>
+- In application.properties:
+<br>spring.security.oauth2.client.registration.google.client-id=${GOOGLE_CLIENT_ID}
+<br>spring.security.oauth2.client.registration.google.client-secret=${GOOGLE_CLIENT_SECRET}
+<br>spring.security.oauth2.client.registration.google.scope=openid,profile,email
+<br>Secrets are injected via environment variables.
 
 ## 📂 Project Structure
 src/
- ├── main/
- │   ├── java/com/chat/app/
- │   │   ├── config/
- │   │   │   └── WebSocketConfig.java
- │   │   ├── controller/
- │   │   │   └── ChatController.java
- │   │   ├── model/
- │   │   │   └── ChatMessage.java
- │   │   └── AppApplication.java
- │   └── resources/
- │       ├── templates/
- │       │   └── chat.html
- │       └── application.properties
+<br> ├── main/
+<br>│   ├── java/com/chat/app/<br>
+ │   │   ├── config/<br>
+ │   │   │   └── WebSocketConfig.java<br>
+ │   │   ├── controller/<br>
+ │   │   │   └── ChatController.java<br>
+ │   │   ├── model/<br>
+ │   │   │   └── ChatMessage.java<br>
+ │   │   └── AppApplication.java<br>
+ │   └── resources/<br>
+ │       ├── templates/<br>
+ │       │   └── chat.html<br>
+ │       └── application.properties<br>
 
 ## 📌 Future Improvements
-Persistent room storage (Redis / Database)
-User presence tracking
-Private messaging
-Message history persistence
-Production-grade authentication & authorization
-Deployment with Docker + Cloud provider
+- Persistent room storage (Redis / Database)
+- User presence tracking
+- Private messaging
+- Message history persistence
+- Production-grade authentication & authorization
+- Deployment with Docker + Cloud provider
 
 ## 🧪 Testing the Application
-Open application in two browsers (or devices).
-Join the same room with correct password.
-Start chatting in real-time.
-Test incorrect password behavior.
+- Open application in two browsers (or devices).
+- Join the same room with correct password.
+- Start chatting in real-time.
+- Test incorrect password behavior.
 
 ## 📄 License
 This project is built for educational and demonstration purposes.
